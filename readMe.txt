@@ -10,8 +10,8 @@ To enter matrix box address
 	Ex. Enter matrix address and press return to reveal: A0[ENTER]
 To mark a mine:
 	when promped, type the letter 'M' followed by the row letter and column number as text, then press enter.
-	Ex. Enter matrix address and press return to reveal: MB4[ENTER]
+	Ex. Enter 'M' and matrix address and press return to reveal: MB4[ENTER]
 To exit early:
 	when prompted, send the letter 'q' and press enter.
-	Ex. Enter matrix address and press return to reveal: q[ENTER]
+	Ex. Enter 'q' and press return to reveal: q[ENTER]
 
