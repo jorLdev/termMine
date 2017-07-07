@@ -4,6 +4,9 @@
 #include <time.h>
 #include <stdbool.h>
 
+// define for extra printing during debugging
+//#define DEBUG
+
 #define GAME_ROWS 10
 #define GAME_COLS 10
 #define GAME_NUM_MINES 20
@@ -11,28 +14,6 @@
 void rowSpacer( int numColumns );
 void colHeader( int numColumns );
 void tablePhil( int rowId, int numCol );
-
-
-bool checkArrayForMatch_Mx2( int arrayToCheck[GAME_NUM_MINES][2])
-{
-	for( int index = 0; index < GAME_NUM_MINES; index++ )
-	{
-		int rowValToCheck = arrayToCheck[index][0];
-		int colValToCheck = arrayToCheck[index][1];
-		for( int indexCompare = 0; indexCompare < GAME_NUM_MINES; indexCompare++ )
-		{
-			if(index != indexCompare)
-			{
-				if( (rowValToCheck == arrayToCheck[indexCompare][0]) &
-					(colValToCheck == arrayToCheck[indexCompare][1]) )
-				{
-					return(true); // there was a matching set, return true
-				}
-			}
-		}
-	}
-	return(false);
-}
 
 
 char gameMapChar[GAME_ROWS][GAME_COLS] = {0};
@@ -44,24 +25,30 @@ int main( int argc, char* argv[])
 	system("clear");
 	int mineMap[GAME_NUM_MINES][2] = {0};
 	int gameMap[GAME_ROWS][GAME_COLS] = {0};
+	int minesFound = 0;
 	bool matchInArray = true;
 	srand( time(NULL) );
 
+	// prep game
+	// future improvement: make game params 1) matix size & 2) number of mines user defined.
 
-	while( matchInArray )
+	// generate 20 random, individual mine loctions.
+	int mineGeneratorCounter = 0;
+	while( mineGeneratorCounter < GAME_NUM_MINES )
 	{
-		for(int index = 0; index < GAME_NUM_MINES; index++ )
+		int rowRand = (int)rand() % GAME_ROWS;
+		int colRand = (int)rand() % GAME_COLS;
+		if( gameMap[rowRand][colRand] == 0 )
 		{
-			mineMap[index][0] = (int)rand() % GAME_ROWS;
-			mineMap[index][1] = (int)rand() % GAME_COLS;
+			mineMap[mineGeneratorCounter][0] = rowRand;
+			mineMap[mineGeneratorCounter][1] = colRand;
+			gameMap[rowRand][colRand] = 255;
+			mineGeneratorCounter++;
 		}
-		matchInArray = checkArrayForMatch_Mx2( mineMap );
 	}
 
-	for(int indexFillGameMap = 0; indexFillGameMap < GAME_NUM_MINES; indexFillGameMap++ )
-	{
-		gameMap[mineMap[indexFillGameMap][0]][mineMap[indexFillGameMap][1]] = 255;
-	}
+	// populate mine-adjacent squares with +1 for each adjacent mine.
+	// checking done here to protect wirting outside bounds, corrupting data.
 	for(int index = 0; index < GAME_NUM_MINES; index++ )
 	{
 		int mineRow = mineMap[index][0];
@@ -108,6 +95,7 @@ int main( int argc, char* argv[])
 
 	}
 
+	// create game map key
 	for(int index = 0; index < GAME_ROWS; index++ )
 	{
 		for( int index2 = 0; index2 < GAME_COLS; index2++ )
@@ -120,28 +108,35 @@ int main( int argc, char* argv[])
 		}
 	}
 
-	
+	// start playing the game
 	printf("\nLet's start playing!\n");
 	bool gameComplete = false;
 	char c;
 	int rowInput, colInput;
+	bool enterKeyPressed = false;
+	bool badMatrixSelection = false;
+	bool mineID = false;
+	bool cheatCodeRcvd = false;
+	int countEntries = 0; // used to count input char position
 	while( !gameComplete )
 	{
-
-		// for(int index = 0; index < GAME_ROWS; index++ )
-		// {
-		// 	for( int index2 = 0; index2 < GAME_COLS; index2++ )
-		// 	{
-		// 		printf("%c,", gameMapCharKey[index][index2]);
-		// 	}
-		// 	printf("\n");
-		// }
-		// for( int index = 0; index < GAME_NUM_MINES; index++ )
-		// {
-		// 	printf("%d,%d\n", mineMap[index][0], mineMap[index][1]);
-		// }
-		// printf("\n");
+		#ifdef DEBUG
+		for(int index = 0; index < GAME_ROWS; index++ )
+		{
+			for( int index2 = 0; index2 < GAME_COLS; index2++ )
+			{
+				printf("%c,", gameMapCharKey[index][index2]);
+			}
+			printf("\n");
+		}
+		for( int index = 0; index < GAME_NUM_MINES; index++ )
+		{
+			printf("%d,%d\n", mineMap[index][0], mineMap[index][1]);
+		}
+		printf("\n");
+		#endif
 		
+		// print game board matrix
 		rowSpacer(GAME_COLS);
 		colHeader(GAME_COLS);
 		for( int indexTableRows = 0; indexTableRows < GAME_ROWS; indexTableRows++ )
@@ -151,7 +146,7 @@ int main( int argc, char* argv[])
 		}
 		rowSpacer(GAME_COLS);
 
-		//check for win
+		//check for win (all squares of gameMapChar are turned over and haven't lost yet)
 		bool mapComplete = true;
 		for(int index = 0; index < 8; index++ )
 		{
@@ -167,72 +162,94 @@ int main( int argc, char* argv[])
 				}
 			}
 		}
+		// if map is complete, game over, user won, exit program.
 		if( mapComplete )
 		{
-			printf("\nYou did it! you won the game!\n");
+			if( true == cheatCodeRcvd )
+			{
+				printf("\nAweseome. You earned that one.\n");
+			}
+			else
+			{
+				printf("\nYou did it! you won the game!\n");
+			}
 			return 0;
 		}
+
+		// prep vars for processing user input
+		badMatrixSelection = false;
+		mineID = false;
+		cheatCodeRcvd = false;
+		countEntries = 0; // used to count input char position
+		enterKeyPressed = false;
+
+		// get user selection for game board element to turn.
+		// collect all input characters before [ENTER]-key passed
 		printf("Enter matrix address and press return to reveal: ");
-		bool transmisionComplete = false;
-		bool badMatrixSelection = false;
-		bool mineID = false;
-		bool cheatCodeRcvd = false;
-		int countEntries = 0;
-		while( !transmisionComplete )
+		while( countEntries == 0)
 		{
 			c = getchar();
-			if( countEntries == 0)
+			if( (c > 0x40) & (c < (0x41+GAME_ROWS)) )
 			{
-				if( (c >= 0x41) & (c <= (0x41+GAME_ROWS-1)))
-				{
-					rowInput = (int)(c - 0x41);
-				}
-				else if( c == 'M')
-				{
-					countEntries--;
-					mineID = true;
-				}
-				else if(c == 'Z')
-				{
-					cheatCodeRcvd = true;
-				}
-				else
-				{
-					//rowInput = 0;
-					badMatrixSelection = true;
-				}
-
+				countEntries++;
+				rowInput = (int)(c - 0x41);
 			}
-			else if( countEntries == 1)
+			else if( c == 'M')
 			{
-				if( (c >= 0x30) & (c <= (0x30 + GAME_COLS - 1)))
-				{
-					colInput = (int)(c - 0x30);
-				}
-				else
-				{
-					//colInput = 0;
-					badMatrixSelection = true;
-				}
+				mineID = true;
 			}
-
-			if( c == 0x0A )
+			else if((c == 'Z') & (true == mineID))
 			{
-				transmisionComplete = true;
+				countEntries++;
+				cheatCodeRcvd = true;
 			}
-			else if( c == 'q')
+			else if( (c == 'q') & ( false == mineID) ) // special case to all user to quit application
 			{
 				printf("\nProgram Terminated.\n");
 				return 0;
 			}
-			countEntries++;
+			else if( c == 0x0A )
+			{
+				enterKeyPressed = true;
+				badMatrixSelection = true;
+			}
+			else
+			{
+				countEntries++;
+				badMatrixSelection = true;
+			}
 		}
-		// printf("\n");
-		system("clear");
-
-		if(mineID)
+		// if first inputs (row selection or mine check plus row id) passed, try for second
+		if( !badMatrixSelection )
 		{
-			if( cheatCodeRcvd )
+			c = getchar();
+			if( (c >= 0x30) & (c <= (0x30 + GAME_COLS - 1)))
+			{
+				colInput = (int)(c - 0x30);
+			}
+			else if( c == 0x0A)
+			{
+				enterKeyPressed = true;
+				badMatrixSelection = true;
+			}
+			else
+			{
+				badMatrixSelection = true;
+			}
+		}
+		// wait for enter key; ignore all other new inputs
+		// enter key press implicit in any user input as it is required to send data
+		while( false == enterKeyPressed )
+		{
+			if( 0x0A == getchar() )
+			{
+				enterKeyPressed = true;
+			}
+		}
+
+		// Process user inputs
+		system("clear"); // clear old information, prep terminal for new printout
+		if( cheatCodeRcvd )
 			{
 				for(int index = 0; index < GAME_ROWS; index++ )
 				{
@@ -242,12 +259,20 @@ int main( int argc, char* argv[])
 					}
 				}
 			}
-			else
+		else if( true == badMatrixSelection )
+		{
+			printf("\nMatrix element not valid, please choose from available options in table.\n");
+		}
+		else if( true == mineID )
+		{
+			printf("Card: %c%c\n", rowInput+0x41, colInput+0x30);
+			if(gameMapChar[rowInput][colInput] == '.')
 			{
-				gameMapChar[rowInput][colInput] = 'M';
-				if( gameMapChar[rowInput][colInput] == gameMapCharKey[rowInput][colInput] )
+				if( gameMapCharKey[rowInput][colInput] == 'M' )
 				{
-					printf("\nCongrats! You've identified a mine!\n");
+					minesFound++;
+					gameMapChar[rowInput][colInput] = 'M';
+					printf("Congrats! You've identified a mine!\n");
 				}
 				else
 				{
@@ -255,13 +280,14 @@ int main( int argc, char* argv[])
 					return 0;
 				}
 			}
-		}
-		else if( badMatrixSelection )
-		{
-			printf("\nMatrix element not valid, please choose from available options in table.\n");
+			else
+			{
+				printf("You already turned over that box! Try Again.\n");
+			}
 		}
 		else
 		{
+			printf("Card: %c%c\n", rowInput+0x41, colInput+0x30);
 			if(gameMapCharKey[rowInput][colInput] == 'M')
 			{
 				printf("\nYou tripped a land mine and died! Better luck next time!\n");
@@ -269,19 +295,15 @@ int main( int argc, char* argv[])
 			}
 			else if(gameMapChar[rowInput][colInput] == '.')
 			{
-				printf("\nGood selection!\n");
+				printf("Good selection!\n");
 				gameMapChar[rowInput][colInput] = gameMapCharKey[rowInput][colInput];
 			}
 			else
 			{
-				printf("\nSquare already selected, try again please...\n");
+				printf("Square already selected, try again please...\n");
 			}
 		}
-
-		
-
 	}
-
 	return(0);
 }
 
