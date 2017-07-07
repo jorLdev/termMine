@@ -15,3 +15,6 @@ To exit early:
 	when prompted, send the letter 'q' and press enter.
 	Ex. Enter 'q' and press return to reveal: q[ENTER]
 
+Complete program is locate @ src/main.c
+Compiled using Apple LLVM version 8.1.0 (clang-802.0.42)
+	- current gcc should be fine, nothing special here.
